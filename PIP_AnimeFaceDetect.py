@@ -65,8 +65,8 @@ class PIP_AnimeFaceDetect:
             # 错误处理：如果没有检测到人脸，直接返回原图
             if not faces:
                 print("未检测到人脸，返回原图")
-                image_with_boxes_list.append(img)
-                cropped_faces_list.append(img)
+                image_with_boxes_list.append(img.unsqueeze(0))  # 添加批次维度
+                cropped_faces_list.append(img.unsqueeze(0))  # 添加批次维度
                 continue
 
             # 选择面积最大的人脸
