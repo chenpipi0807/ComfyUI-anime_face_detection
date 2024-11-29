@@ -94,12 +94,16 @@ class PIP_AnimeFaceDetect:
             cropped_face = np.array(img_pil.crop((x1, y1, x2, y2)))
             cropped_face_tensor = torch.from_numpy(cropped_face.astype(np.float32) / 255.0)
 
+            # 确保返回的图像有批次维度
+            image_with_boxes_tensor = image_with_boxes_tensor.unsqueeze(0)
+            cropped_face_tensor = cropped_face_tensor.unsqueeze(0)
+
             image_with_boxes_list.append(image_with_boxes_tensor)
             cropped_faces_list.append(cropped_face_tensor)
 
             plt.close(fig)  # 关闭图形以释放内存
 
-        return image_with_boxes_list, cropped_faces_list
+        return image_with_boxes_list[0], cropped_faces_list[0]
 
 # 包含所有要导出的节点的字典，以及它们的名称
 NODE_CLASS_MAPPINGS = {
