@@ -16,15 +16,16 @@ class PIP_AnimeFaceDetect:
                 "image_in": ("IMAGE", {}),
                 "score_threshold": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 1.0, "step": 0.01, "label": "置信度阈值"}),
                 "iou_threshold": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.01, "label": "IOU 阈值"}),
+                "expand_ratio": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01, "label": "扩展比例"})
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE")
-    RETURN_NAMES = ("带框图像", "裁剪人脸")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "MASK")
+    RETURN_NAMES = ("带框图像", "裁剪人脸", "人脸遮罩")
     CATEGORY = "PIP 动漫人脸检测"
     FUNCTION = "detect_and_crop_faces"
 
-    def detect_and_crop_faces(self, image_in, score_threshold=0.25, iou_threshold=0.7):
+    def detect_and_crop_faces(self, image_in, score_threshold=0.25, iou_threshold=0.7, expand_ratio=0.0):
         # 确保图像是正确的维度 (batch_size, height, width, channels)
         if image_in.dim() == 3:
             image_in = image_in.unsqueeze(0)  # 添加批次维度
@@ -35,6 +36,7 @@ class PIP_AnimeFaceDetect:
         # 处理每个批次的图像
         image_with_boxes_list = []
         cropped_faces_list = []
+        masks_list = []
 
         for i in range(batch_size):
             img = image_in[i]
@@ -67,17 +69,31 @@ class PIP_AnimeFaceDetect:
                 print("未检测到人脸，返回原图")
                 image_with_boxes_list.append(img.unsqueeze(0))  # 添加批次维度
                 cropped_faces_list.append(img.unsqueeze(0))  # 添加批次维度
+                masks_list.append(torch.zeros((1, height, width), dtype=torch.float32))  # 空白遮罩
                 continue
 
             # 选择面积最大的人脸
             largest_face = max(faces, key=lambda x: (x[0][2] - x[0][0]) * (x[0][3] - x[0][1]))
+
+            # 计算扩展后的边界框
+            (x1, y1, x2, y2), label, score = largest_face
+            face_width = x2 - x1
+            face_height = y2 - y1
+            x1 = max(0, x1 - face_width * expand_ratio)
+            y1 = max(0, y1 - face_height * expand_ratio)
+            x2 = min(width, x2 + face_width * expand_ratio)
+            y2 = min(height, y2 + face_height * expand_ratio)
+
+            # 创建人脸遮罩
+            mask = torch.zeros((height, width), dtype=torch.float32)
+            mask[int(y1):int(y2), int(x1):int(x2)] = 1.0
+            masks_list.append(mask.unsqueeze(0))  # 添加批次维度
 
             # 使用matplotlib进行可视化
             fig, ax = plt.subplots(1)
             ax.imshow(img_pil)
 
             # 绘制边界框
-            (x1, y1, x2, y2), label, score = largest_face
             rect = patches.Rectangle((x1, y1), x2-x1, y2-y1, linewidth=2, edgecolor='r', facecolor='none')
             ax.add_patch(rect)
             plt.text(x1, y1, f'{label}: {score:.2f}', color='red', fontsize=12)
@@ -103,9 +119,9 @@ class PIP_AnimeFaceDetect:
 
             plt.close(fig)  # 关闭图形以释放内存
 
-        return image_with_boxes_list[0], cropped_faces_list[0]
+        return image_with_boxes_list[0], cropped_faces_list[0], masks_list[0]
 
-# 包含所有要导出的节点的字典，以及它们的名称
+# 包含所有要导出的节点的字典以及它们的名称
 NODE_CLASS_MAPPINGS = {
     "PIP_AnimeFaceDetect": PIP_AnimeFaceDetect
 }
