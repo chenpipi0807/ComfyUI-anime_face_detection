@@ -5,6 +5,12 @@
 基于 [Hugging Face deepghs/anime_face_detection](https://huggingface.co/deepghs/anime_face_detection) 项目的 ComfyUI 实现。这个项目用的是 ONNX 模型来检测动漫人脸，还能调节置信度和 IOU 阈值。
 ![微信截图_20241129164819](https://github.com/user-attachments/assets/28d28635-157d-447f-862f-79b65259dcf1)
 
+# PIP 更新日志
+0217 新增了图像随机拼接 基于稳定的人脸检测确保每张裁切的图面部都不被裁切
+<img width="1498" alt="783E4F40-63D6-4100-BB15-4B0AFE197093" src="https://github.com/user-attachments/assets/71ba4e74-7937-4e26-ba56-b593b8504d5f" />
+
+
+
 ## 功能
 
 - **人脸检测**：能找出图里的动漫人脸。
