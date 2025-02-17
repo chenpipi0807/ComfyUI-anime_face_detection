@@ -225,6 +225,15 @@ class PIP_Collage:
     def collage(self, images, canvas_width, canvas_height, border_width, rounded_rect_radius,
                uniformity, background_color, seed, expand_ratio=0.2):
         batch_size = images.shape[0]
+        
+        # 创建随机顺序的索引
+        indices = list(range(batch_size))
+        random.seed(seed)  # 使用相同的seed确保布局和图片顺序的一致性
+        random.shuffle(indices)
+        
+        # 根据随机顺序重新排列图像
+        images = images[indices]
+        
         rects = LS_CollageGenerator(width=canvas_width,
                                   height=canvas_height,
                                   num=batch_size,
