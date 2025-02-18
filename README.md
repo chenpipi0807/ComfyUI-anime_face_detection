@@ -7,6 +7,7 @@
 
 # PIP 更新日志
 0217 新增了图像随机拼接 基于稳定的人脸检测确保每张裁切的图面部都不被裁切
+0218 新增mode选项，多头模式和单头模式
 <img width="1498" alt="783E4F40-63D6-4100-BB15-4B0AFE197093" src="https://github.com/user-attachments/assets/71ba4e74-7937-4e26-ba56-b593b8504d5f" />
 
 
