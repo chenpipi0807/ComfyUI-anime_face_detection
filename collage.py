@@ -150,70 +150,65 @@ class PIP_Collage:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "images": ("IMAGE", {
-                    "description": "输入图像"
-                }),
+                "images": ("IMAGE", {"description": "输入图像"}),
                 "canvas_width": ("INT", {
-                    "default": 2048, 
-                    "min": 512, 
-                    "max": 8192, 
-                    "step": 16, 
-                    "display": "画布宽度",
-                    "description": "拼图画布的宽度"
+                    "default": 2048,
+                    "min": 512,
+                    "max": 8192,
+                    "step": 16,
+                    "display": "画布宽度"
                 }),
                 "canvas_height": ("INT", {
-                    "default": 2048, 
-                    "min": 512, 
-                    "max": 8192, 
-                    "step": 16, 
-                    "display": "画布高度",
-                    "description": "拼图画布的高度"
+                    "default": 2048,
+                    "min": 512,
+                    "max": 8192,
+                    "step": 16,
+                    "display": "画布高度"
                 }),
                 "border_width": ("FLOAT", {
-                    "default": 0.5, 
-                    "min": 0, 
-                    "max": 20, 
-                    "step": 0.1, 
-                    "display": "边框宽度",
-                    "description": "图片之间的边框宽度"
+                    "default": 0.5,
+                    "min": 0,
+                    "max": 20,
+                    "step": 0.1,
+                    "display": "边框宽度"
                 }),
                 "rounded_rect_radius": ("INT", {
-                    "default": 32,  # 增大默认圆角半径
-                    "min": 0, 
-                    "max": 100, 
-                    "step": 1, 
-                    "display": "圆角半径",
-                    "description": "拼图块的圆角程度"
+                    "default": 32,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                    "display": "圆角半径"
                 }),
                 "uniformity": ("FLOAT", {
-                    "default": 0.5, 
-                    "min": 0, 
-                    "max": 1, 
-                    "step": 0.1, 
-                    "display": "均匀度",
-                    "description": "拼图块大小的均匀程度"
+                    "default": 0.5,
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.1,
+                    "display": "均匀度"
                 }),
                 "background_color": ("STRING", {
-                    "default": "#000000", 
-                    "display": "背景颜色",
-                    "description": "拼图背景的颜色"
+                    "default": "#000000",
+                    "display": "背景颜色"
                 }),
                 "seed": ("INT", {
-                    "default": 0, 
-                    "min": 0, 
-                    "max": int(1e18), 
-                    "step": 1, 
-                    "display": "随机种子",
-                    "description": "控制拼图布局的随机种子"
+                    "default": 0,
+                    "min": 0,
+                    "max": int(1e18),
+                    "step": 1,
+                    "display": "随机种子"
                 }),
                 "expand_ratio": ("FLOAT", {
-                    "default": 0.2, 
-                    "min": 0.0, 
-                    "max": 1.0, 
-                    "step": 0.01, 
-                    "display": "人脸扩展比例",
-                    "description": "人脸区域的扩展程度"
+                    "default": 0.2,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.01,
+                    "display": "人脸扩展比例"
                 }),
+                "mode": (["multi", "single"], {  # 修改后的关键部分
+                    "default": "multi",
+                    "display": "模式",
+                    "description": "选择多人模式或单人模式"
+                })
             }
         }
 
@@ -223,15 +218,14 @@ class PIP_Collage:
     CATEGORY = 'PIP 动漫人脸检测'
 
     def collage(self, images, canvas_width, canvas_height, border_width, rounded_rect_radius,
-               uniformity, background_color, seed, expand_ratio=0.2):
+                uniformity, background_color, seed, expand_ratio=0.2, mode="multi"):
         batch_size = images.shape[0]
         
         # 创建随机顺序的索引
         indices = list(range(batch_size))
-        random.seed(seed)  # 使用相同的seed确保布局和图片顺序的一致性
+        random.seed(seed)
         random.shuffle(indices)
         
-        # 根据随机顺序重新排列图像
         images = images[indices]
         
         rects = LS_CollageGenerator(width=canvas_width,
@@ -242,92 +236,78 @@ class PIP_Collage:
                                   uniformity=uniformity,
                                   seed=seed)
 
-        # 创建透明背景的画布
         canvas = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
-        
-        # 创建遮罩
         mask = Image.new("L", (canvas_width, canvas_height), 0)
         mask_draw = ImageDraw.Draw(mask)
 
+        if mode == "single":
+            detector = PIP_AnimeFaceDetect()
+            face_areas = []
+            face_masks_all = []
+            for i in range(batch_size):
+                _, _, face_mask = detector.detect_and_crop_faces(
+                    image_in=images[i].unsqueeze(0),
+                    expand_ratio=expand_ratio
+                )
+                face_mask_np = face_mask.squeeze(0).cpu().numpy()
+                area = np.sum(face_mask_np > 0)
+                face_areas.append(area)
+                face_masks_all.append(face_mask.squeeze(0))
+            max_idx = int(np.argmax(face_areas))
+        
         for i in tqdm(range(batch_size)):
             img = tensor2pil(images[i]).convert("RGBA")
-            img_x = rects.rectangles[i][0]
-            img_y = rects.rectangles[i][1]
-            img_target_width = rects.rectangles[i][2]
-            img_target_height = rects.rectangles[i][3]
+            img_x, img_y = rects.rectangles[i][0], rects.rectangles[i][1]
+            img_w, img_h = rects.rectangles[i][2], rects.rectangles[i][3]
 
-            # 使用PIP_AnimeFaceDetect进行人脸检测
-            detector = PIP_AnimeFaceDetect()
-            _, _, face_mask = detector.detect_and_crop_faces(
-                image_in=images[i].unsqueeze(0),
-                expand_ratio=expand_ratio
-            )
-
-            # 使用人脸遮罩进行智能裁剪
-            resized_img = self.image_auto_crop_v3(
-                img,
-                img_target_width,
-                img_target_height,
-                face_mask.squeeze(0)
-            )
+            if mode == "multi":
+                detector = PIP_AnimeFaceDetect()
+                _, _, face_mask = detector.detect_and_crop_faces(
+                    image_in=images[i].unsqueeze(0),
+                    expand_ratio=expand_ratio
+                )
+                cur_mask = face_mask.squeeze(0)
+            else:
+                cur_mask = face_masks_all[i] if i == max_idx else torch.ones_like(face_masks_all[i]) - face_masks_all[i]
             
-            # 给每个图片添加圆角
+            resized_img = self.image_auto_crop_v3(img, img_w, img_h, cur_mask)
             rounded_img = add_corners_to_image(resized_img, rounded_rect_radius)
             
-            # 将圆角图片粘贴到画布上
-            canvas.paste(rounded_img, box=(img_x, img_y), mask=rounded_img.split()[3])
-            
-            # 在遮罩上绘制矩形
-            mask_draw.rectangle([img_x, img_y, img_x + img_target_width, img_y + img_target_height], fill=255)
+            canvas.paste(rounded_img, (img_x, img_y), mask=rounded_img.split()[3])
+            mask_draw.rectangle([img_x, img_y, img_x + img_w, img_y + img_h], fill=255)
 
-        # 创建最终的彩色图像
         final_image = Image.new("RGB", (canvas_width, canvas_height), background_color)
         final_image.paste(canvas, mask=canvas.split()[3])
         
         return (pil2tensor(final_image), pil2tensor(mask))
 
     def image_auto_crop_v3(self, image, proportional_width, proportional_height, mask):
-        scale_to_length = proportional_width
         _image = image
         ratio = proportional_width / proportional_height
-        resize_sampler = Image.LANCZOS
         
         if ratio > 1:
-            target_width = scale_to_length
+            target_width = proportional_width
             target_height = int(target_width / ratio)
         else:
-            target_width = scale_to_length
+            target_width = proportional_width
             target_height = int(target_width / ratio)
 
-        _mask = mask
-        bluredmask = gaussian_blur(tensor2pil(_mask), 20).convert('L')
-        (mask_x, mask_y, mask_w, mask_h) = mask_area(bluredmask)
+        bluredmask = gaussian_blur(tensor2pil(mask), 20).convert('L')
+        mask_x, mask_y, mask_w, mask_h = mask_area(bluredmask)
         orig_ratio = _image.width / _image.height
-        target_ratio = target_width / target_height
         
-        if orig_ratio > target_ratio:
-            crop_w = int(_image.height * target_ratio)
+        if orig_ratio > (target_width / target_height):
+            crop_w = int(_image.height * (target_width / target_height))
             crop_h = _image.height
         else:
             crop_w = _image.width
-            crop_h = int(_image.width / target_ratio)
+            crop_h = int(_image.width / (target_width / target_height))
             
-        crop_x = mask_w // 2 + mask_x - crop_w // 2
-        if crop_x < 0:
-            crop_x = 0
-        if crop_x + crop_w > _image.width:
-            crop_x = _image.width - crop_w
+        crop_x = min(max(mask_w // 2 + mask_x - crop_w // 2, 0), _image.width - crop_w)
+        crop_y = min(max(mask_h // 2 + mask_y - crop_h // 2, 0), _image.height - crop_h)
             
-        crop_y = mask_h // 2 + mask_y - crop_h // 2
-        if crop_y < 0:
-            crop_y = 0
-        if crop_y + crop_h > _image.height:
-            crop_y = _image.height - crop_h
-            
-        crop_image = _image.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h))
-        ret_image = crop_image.resize((target_width, target_height), resize_sampler)
-
-        return ret_image
+        return _image.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h)).resize(
+            (target_width, target_height), Image.LANCZOS)
 
 NODE_CLASS_MAPPINGS = {
     "PIP_Collage": PIP_Collage,
