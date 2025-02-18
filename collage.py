@@ -170,7 +170,7 @@ class PIP_Collage:
                     "description": "拼图画布的高度"
                 }),
                 "border_width": ("FLOAT", {
-                    "default": 2, 
+                    "default": 0.5, 
                     "min": 0, 
                     "max": 20, 
                     "step": 0.1, 
@@ -194,7 +194,7 @@ class PIP_Collage:
                     "description": "拼图块大小的均匀程度"
                 }),
                 "background_color": ("STRING", {
-                    "default": "#FFFFFF", 
+                    "default": "#000000", 
                     "display": "背景颜色",
                     "description": "拼图背景的颜色"
                 }),
