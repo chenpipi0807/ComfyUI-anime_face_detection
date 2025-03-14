@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_anime_face_detection"
+description = "A ComfyUI custom node for detecting anime-style faces in images, enabling face-aware operations in your image generation workflows."
+version = "1.0.0"
+license = {text = "MIT"}
+dependencies = ["opencv-python", "numpy", "torch"]
+
+[project.urls]
+Repository = "https://github.com/chenpipi0807/ComfyUI-anime_face_detection"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI Anime Face Detection"
+Icon = ""
