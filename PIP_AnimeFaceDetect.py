@@ -20,8 +20,8 @@ class PIP_AnimeFaceDetect:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE", "MASK")
-    RETURN_NAMES = ("带框图像", "裁剪人脸", "人脸遮罩")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("带框图像", "裁剪人脸", "人脸遮罩", "人脸检测结果")
     CATEGORY = "PIP 动漫人脸检测"
     FUNCTION = "detect_and_crop_faces"
 
@@ -37,6 +37,7 @@ class PIP_AnimeFaceDetect:
         image_with_boxes_list = []
         cropped_faces_list = []
         masks_list = []
+        face_detected = "0"  # 默认为未检测到人脸
 
         for i in range(batch_size):
             img = image_in[i]
@@ -71,6 +72,9 @@ class PIP_AnimeFaceDetect:
                 cropped_faces_list.append(img.unsqueeze(0))  # 添加批次维度
                 masks_list.append(torch.zeros((1, height, width), dtype=torch.float32))  # 空白遮罩
                 continue
+            
+            # 检测到人脸，设置标志为"1"
+            face_detected = "1"
 
             # 选择面积最大的人脸
             largest_face = max(faces, key=lambda x: (x[0][2] - x[0][0]) * (x[0][3] - x[0][1]))
@@ -119,7 +123,7 @@ class PIP_AnimeFaceDetect:
 
             plt.close(fig)  # 关闭图形以释放内存
 
-        return image_with_boxes_list[0], cropped_faces_list[0], masks_list[0]
+        return image_with_boxes_list[0], cropped_faces_list[0], masks_list[0], face_detected
 
 # 包含所有要导出的节点的字典以及它们的名称
 NODE_CLASS_MAPPINGS = {
